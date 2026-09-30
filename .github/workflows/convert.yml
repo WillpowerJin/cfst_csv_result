@@ -1,0 +1,31 @@
+name: Convert CFST CSV
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - result.csv
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Convert result.csv to script-compatible format
+        run: |
+          awk -F',' '{sub(/\r$/,"")} NR==1{print "IP,端口,TLS,数据中心,速度"; next} NF>=7{print $1",443,TRUE,"$7","$6}' result.csv > result_cfst.csv
+          echo "转换完成: $(wc -l < result_cfst.csv) 行"
+
+      - name: Commit converted file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add result_cfst.csv
+          git diff --cached --quiet && echo "无变化,跳过提交" && exit 0
+          git commit -m "chore: auto-convert result.csv to result_cfst.csv"
+          git push
