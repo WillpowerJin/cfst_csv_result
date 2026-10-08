@@ -26,7 +26,7 @@ jobs:
             # 每个源只取前 10 个有效数据(排除地区码 N/A)
             for f in result.csv $(ls result_*.csv 2>/dev/null | grep -v '^result_cfst\.csv$' | sort); do
               [ -f "$f" ] || continue
-              echo "处理: $f"
+              echo "处理: $f" >&2
               awk -F',' '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7","$6; n++; if(n>=10) exit}' "$f"
             done
           } | awk -F',' 'NR==1 || !seen[$1]++' > result_cfst.csv
