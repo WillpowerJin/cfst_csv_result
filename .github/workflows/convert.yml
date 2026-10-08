@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - result.csv
-      - result_company.csv
+      - "result_*.csv"
+      - "!result_cfst.csv"
   workflow_dispatch:
 
 permissions:
@@ -17,16 +18,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Convert result.csv + result_company.csv to script-compatible format
+      - name: Convert all result CSVs to script-compatible format
         run: |
           {
             echo "IP,端口,TLS,数据中心,速度"
-            # 家庭网络: result.csv 前 10 个有效数据(排除地区码 N/A)
-            awk -F',' '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7","$6; n++; if(n>=10) exit}' result.csv
-            # 公司网络: result_company.csv 前 10 个有效数据(排除地区码 N/A),不存在则跳过
-            if [ -f result_company.csv ]; then
-              awk -F',' '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7","$6; n++; if(n>=10) exit}' result_company.csv
-            fi
+            # 家庭网络在前,其余环境(result_*.csv)按文件名字典序依次追加
+            # 每个源只取前 10 个有效数据(排除地区码 N/A)
+            for f in result.csv $(ls result_*.csv 2>/dev/null | grep -v '^result_cfst\.csv$' | sort); do
+              [ -f "$f" ] || continue
+              echo "处理: $f"
+              awk -F',' '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7","$6; n++; if(n>=10) exit}' "$f"
+            done
           } | awk -F',' 'NR==1 || !seen[$1]++' > result_cfst.csv
           echo "转换完成: $(wc -l < result_cfst.csv) 行"
 
