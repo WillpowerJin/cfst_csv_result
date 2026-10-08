@@ -27,7 +27,9 @@ jobs:
             for f in result.csv $(ls result_*.csv 2>/dev/null | grep -v '^result_cfst\.csv$' | sort); do
               [ -f "$f" ] || continue
               echo "处理: $f" >&2
-              awk -F',' '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7","$6; n++; if(n>=10) exit}' "$f"
+              # 来源标签: result.csv -> home, result_company.csv -> company,以此类推
+              tag="${f%.csv}"; tag="${tag#result_}"; [ "$tag" = "result" ] && tag="home"
+              awk -F',' -v tag="$tag" '{sub(/\r$/,"")} NR>1 && NF>=7 && $7!="N/A" {print $1",443,TRUE,"$7"-"tag","$6; n++; if(n>=10) exit}' "$f"
             done
           } | awk -F',' 'NR==1 || !seen[$1]++' > result_cfst.csv
           echo "转换完成: $(wc -l < result_cfst.csv) 行"
